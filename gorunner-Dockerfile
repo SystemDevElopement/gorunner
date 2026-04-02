@@ -1,0 +1,26 @@
+# Build stage
+FROM golang:1.21-alpine AS builder
+
+WORKDIR /app
+COPY api/go.mod api/go.sum ./
+RUN go mod download
+
+COPY api/main.go .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /gorunner .
+
+# Runtime stage - needs Go to compile user code
+FROM golang:1.21-alpine
+
+RUN apk add --no-cache ca-certificates
+
+WORKDIR /app
+
+# Copy pre-built API binary
+COPY --from=builder /gorunner /usr/local/bin/gorunner
+
+# Copy Go toolchain (already in golang image)
+# Users need `go` available to compile their code
+
+EXPOSE 8080
+
+CMD ["gorunner"]
